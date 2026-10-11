@@ -29,7 +29,7 @@ css_code = """
 </style>
 """
 
-st.markdown(css_code, unsafe_html=True)
+st.markdown(css_code, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 1. Authentication & Session State Setup
