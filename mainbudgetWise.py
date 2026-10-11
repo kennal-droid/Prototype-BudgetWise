@@ -10,6 +10,32 @@ from supabaseClient import supabase
 st.set_page_config(page_title="BudgetWise", page_icon="💰", layout="wide")
 
 # ---------------------------------------------------------
+# Custom Theme & Dark Forest Green Vertical Gradient
+# ---------------------------------------------------------
+st.markdown(
+    """
+    <style>
+    /* Gradient background for main app view */
+    .stApp {
+        background: linear-gradient(180deg, #0F2A1D 0%, #081810 50%, #030805 100%);
+        background-attachment: fixed;
+    }
+    
+    /* Make top app header bar transparent */
+    [data-testid="stHeader"] {
+        background-color: rgba(0, 0, 0, 0);
+    }
+
+    /* Style sidebar background */
+    [data-testid="stSidebar"] {
+        background-color: #0B1D14;
+    }
+    </style>
+    """,
+    unsafe_html=True
+)
+
+# ---------------------------------------------------------
 # 1. Authentication & Session State Setup
 # ---------------------------------------------------------
 if "authenticated" not in st.session_state:
