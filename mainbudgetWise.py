@@ -119,7 +119,7 @@ if name_input != user.name or income_input != user.monthlyIncome:
             "name": user.name,
             "monthly_income": user.monthlyIncome
         }, on_conflict="user_id").execute()
-        st.sidebar.toast("Profile auto-synced to cloud!", icon="☁️")
+        st.sidebar.success("Profile auto-synced!")
     except Exception as e:
         st.sidebar.error(f"Auto-sync failed: {e}")
 
