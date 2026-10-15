@@ -109,20 +109,19 @@ st.sidebar.caption(f"User ID: {user.userID}")
 name_input = st.sidebar.text_input("Name", value=user.name)
 income_input = st.sidebar.number_input("Monthly Income (₱)", min_value=0.0, value=user.monthlyIncome, step=1000.0)
 
-user.name = name_input
-user.monthlyIncome = income_input
-
-# Cloud Sync Button
-if st.sidebar.button("Sync Profile to Cloud"):
+# Automatic Cloud Sync when profile values change
+if name_input != user.name or income_input != user.monthlyIncome:
+    user.name = name_input
+    user.monthlyIncome = income_input
     try:
         supabase.table("users").upsert({
             "user_id": user.userID,
             "name": user.name,
             "monthly_income": user.monthlyIncome
         }, on_conflict="user_id").execute()
-        st.sidebar.success("Profile saved to database!")
+        st.sidebar.toast("Profile auto-synced to cloud!", icon="☁️")
     except Exception as e:
-        st.sidebar.error(f"Cloud sync failed: {e}")
+        st.sidebar.error(f"Auto-sync failed: {e}")
 
 if st.sidebar.button("Logout"):
     st.session_state.authenticated = False
