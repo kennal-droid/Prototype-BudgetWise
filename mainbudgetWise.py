@@ -10,28 +10,6 @@ from supabaseClient import supabase
 st.set_page_config(page_title="BudgetWise", page_icon="💰", layout="wide")
 
 # ---------------------------------------------------------
-# Custom Theme & Dark Forest Green Vertical Gradient
-# ---------------------------------------------------------
-css_code = """
-<style>
-.stApp {
-    background: linear-gradient(180deg, #0F2A1D 0%, #081810 50%, #030805 100%);
-    background-attachment: fixed;
-}
-
-[data-testid="stHeader"] {
-    background-color: rgba(0, 0, 0, 0);
-}
-
-[data-testid="stSidebar"] {
-    background-color: #0B1D14;
-}
-</style>
-"""
-
-st.markdown(css_code, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
 # 1. Authentication & Session State Setup
 # ---------------------------------------------------------
 if "authenticated" not in st.session_state:
@@ -79,22 +57,22 @@ def show_login_page():
 
         # --- SIGNUP TAB ---
         with tab2:
-            st.subheader("Create a New Account")
+            st.subheader("Create or Update Account")
             with st.form("signup_form"):
                 new_id = st.text_input("Choose User ID (e.g. U102)")
                 new_name = st.text_input("Full Name")
                 new_income = st.number_input("Monthly Income (₱)", min_value=0.0, value=25000.0, step=1000.0)
-                submit_signup = st.form_submit_button("Create Account")
+                submit_signup = st.form_submit_button("Register / Save Account")
                 
                 if submit_signup:
                     if new_id.strip() and new_name.strip():
                         try:
-                            # Register user in Supabase
-                            supabase.table("users").insert({
+                            # Use upsert with on_conflict to update existing user_id instead of duplicating
+                            supabase.table("users").upsert({
                                 "user_id": new_id.strip(),
                                 "name": new_name.strip(),
                                 "monthly_income": new_income
-                            }).execute()
+                            }, on_conflict="user_id").execute()
                             
                             # Initialize instance
                             st.session_state.user = userBudgetWise(
@@ -103,10 +81,10 @@ def show_login_page():
                                 monthlyIncome=new_income
                             )
                             st.session_state.authenticated = True
-                            st.success("Account created successfully!")
+                            st.success("Account saved successfully!")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Failed to create account: {e}")
+                            st.error(f"Failed to save account: {e}")
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
@@ -141,7 +119,7 @@ if st.sidebar.button("Sync Profile to Cloud"):
             "user_id": user.userID,
             "name": user.name,
             "monthly_income": user.monthlyIncome
-        }).execute()
+        }, on_conflict="user_id").execute()
         st.sidebar.success("Profile saved to database!")
     except Exception as e:
         st.sidebar.error(f"Cloud sync failed: {e}")
