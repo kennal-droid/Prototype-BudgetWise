@@ -10,6 +10,28 @@ from supabaseClient import supabase
 st.set_page_config(page_title="BudgetWise", page_icon="💰", layout="wide")
 
 # ---------------------------------------------------------
+# Helper: Load User Transactions from Supabase
+# ---------------------------------------------------------
+def load_user_transactions(user_obj):
+    """Fetches user transactions from Supabase and populates the local object."""
+    try:
+        tx_response = supabase.table("transactions").select("*").eq("user_id", user_obj.userID).execute()
+        if tx_response.data:
+            # Clear local list to avoid duplicate appends on reload
+            user_obj.transactions = []
+            for row in tx_response.data:
+                loaded_tx = transactions(
+                    amount=float(row["amount"]),
+                    transactionID=row["transaction_id"],
+                    type=row.get("type", "expense"),
+                    category=row.get("category", "General"),
+                    description=row.get("description", "No description")
+                )
+                user_obj.addtransaction(loaded_tx)
+    except Exception as e:
+        st.sidebar.error(f"Could not load cloud transactions: {e}")
+
+# ---------------------------------------------------------
 # 1. Authentication & Session State Setup
 # ---------------------------------------------------------
 if "authenticated" not in st.session_state:
@@ -40,11 +62,15 @@ def show_login_page():
                             response = supabase.table("users").select("*").eq("user_id", login_id.strip()).execute()
                             if response.data:
                                 db_user = response.data[0]
-                                st.session_state.user = userBudgetWise(
+                                user_instance = userBudgetWise(
                                     userID=db_user["user_id"],
                                     name=db_user["name"],
                                     monthlyIncome=float(db_user["monthly_income"])
                                 )
+                                # Load saved transactions from cloud
+                                load_user_transactions(user_instance)
+                                
+                                st.session_state.user = user_instance
                                 st.session_state.authenticated = True
                                 st.success(f"Welcome back, {db_user['name']}!")
                                 st.rerun()
@@ -67,19 +93,22 @@ def show_login_page():
                 if submit_signup:
                     if new_id.strip() and new_name.strip():
                         try:
-                            # Use upsert with on_conflict to update existing user_id instead of duplicating
+                            # Upsert user record
                             supabase.table("users").upsert({
                                 "user_id": new_id.strip(),
                                 "name": new_name.strip(),
                                 "monthly_income": new_income
                             }, on_conflict="user_id").execute()
                             
-                            # Initialize instance
-                            st.session_state.user = userBudgetWise(
+                            user_instance = userBudgetWise(
                                 userID=new_id.strip(),
                                 name=new_name.strip(),
                                 monthlyIncome=new_income
                             )
+                            # Load existing transactions if account already had data
+                            load_user_transactions(user_instance)
+                            
+                            st.session_state.user = user_instance
                             st.session_state.authenticated = True
                             st.success("Account saved successfully!")
                             st.rerun()
@@ -155,6 +184,7 @@ elif menu == "Add Expense":
         submitted = st.form_submit_button("Record Expense")
         if submitted:
             if expense_name:
+                # 1. Add locally to Python session object
                 new_tx = transactions(
                     amount=expense_amount, 
                     transactionID=transaction_id, 
@@ -163,7 +193,20 @@ elif menu == "Add Expense":
                     description=expense_name
                 )
                 user.addtransaction(new_tx)
-                st.success(f"Added expense: {expense_name} ({category}) - ₱{expense_amount:,.2f}")
+                
+                # 2. Persist directly to Supabase transactions table
+                try:
+                    supabase.table("transactions").insert({
+                        "user_id": user.userID,
+                        "transaction_id": transaction_id,
+                        "amount": expense_amount,
+                        "type": "expense",
+                        "category": category,
+                        "description": expense_name
+                    }).execute()
+                    st.success(f"Added & synced expense: {expense_name} ({category}) - ₱{expense_amount:,.2f}")
+                except Exception as db_err:
+                    st.error(f"Saved locally, but cloud sync failed: {db_err}")
             else:
                 st.warning("Please provide an expense description.")
 
