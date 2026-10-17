@@ -163,13 +163,27 @@ menu = st.sidebar.radio(
 )
 
 # --- Dashboard ---
-if menu == "Dashboard":
+elif menu == "Dashboard":
     st.header(f"Welcome back, {user.name}!")
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("User ID", user.userID)
-    col2.metric("Monthly Income", f"₱{user.monthlyIncome:,.2f}")
-    col3.metric("Total Transactions", len(user.transactions))
+    current_spending = user.getTotalExpenses()
+    remaining_balance = user.monthlyIncome - current_spending
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Monthly Income", f"₱{user.monthlyIncome:,.2f}")
+    col2.metric("Total Spending", f"₱{current_spending:,.2f}")
+    col3.metric("Net Balance", f"₱{remaining_balance:,.2f}")
+    col4.metric("Total Transactions", len(user.transactions))
+    
+    st.write("---")
+    st.subheader("Quick Financial Overview")
+    
+    if current_spending > user.monthlyIncome:
+        st.error("🚨 CRITICAL ALERT: Your total spending currently exceeds your monthly income!")
+    elif current_spending > user.monthlyIncome * 0.8:
+        st.error("⚠️ CAUTION: You have spent over 80% of your monthly income.")
+    else:
+        st.success("✅ Your spending is within a healthy range relative to your income.")
 
 # --- Add Expense ---
 elif menu == "Add Expense":
@@ -242,7 +256,12 @@ elif menu == "Manage Budget":
     col3.metric("Remaining Budget", f"₱{budget.remainingBudget:,.2f}")
     
     st.subheader("Status")
-    st.info(budget.checkBudgetStatus())
+    if budget.remainingBudget < 0:
+        st.error(f"🚨 BUDGET EXCEEDED! You are over budget by ₱{abs(budget.remainingBudget):,.2f}.")
+    elif budget.currentSpending > budget.monthlyLimit * 0.8:
+        st.error(f"⚠️ Warning: You have used over 80% of your monthly budget limit!")
+    else:
+        st.info(budget.checkBudgetStatus())
 
 # --- Saving Goals ---
 elif menu == "Saving Goals":
@@ -274,8 +293,10 @@ elif menu == "Financial Coach":
     current_spending = user.getTotalExpenses()
     pattern = f"Spent ₱{current_spending:,.2f} out of ₱{user.monthlyIncome:,.2f} income."
     
-    if current_spending > user.monthlyIncome * 0.8:
-        rec = "You are spending more than 80% of your income. Focus on cutting non-essential costs."
+    if current_spending > user.monthlyIncome:
+        rec = "CRITICAL ALERT: Your expenses exceed your monthly income! Immediate budget cuts are required."
+    elif current_spending > user.monthlyIncome * 0.8:
+        rec = "You are spending more than 80% of your income. Focus on cutting non-essential costs immediately."
     else:
         rec = "Your spending is healthy. Consider channeling extra balance into savings!"
         
@@ -285,4 +306,7 @@ elif menu == "Financial Coach":
     st.write(coach.analyzeSpending())
     
     st.subheader("Recommendation")
-    st.success(coach.giveSuggestion())
+    if current_spending > user.monthlyIncome * 0.8:
+        st.error(coach.giveSuggestion())
+    else:
+        st.success(coach.giveSuggestion())
