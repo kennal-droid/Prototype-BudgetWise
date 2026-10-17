@@ -163,7 +163,7 @@ menu = st.sidebar.radio(
 )
 
 # --- Dashboard ---
-elif menu == "Dashboard":
+if menu == "Dashboard":
     st.header(f"Welcome back, {user.name}!")
     
     current_spending = user.getTotalExpenses()
