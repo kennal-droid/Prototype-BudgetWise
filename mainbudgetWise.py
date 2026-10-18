@@ -46,6 +46,11 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
     st.session_state.user = None
+if "savings_goals" not in st.session_state:
+    # Initialize with default goal while allowing cumulative entries
+    st.session_state.savings_goals = [
+        SavingsGoal("G001", "Emergency Fund", 50000.0, 5000.0)
+    ]
 
 def show_login_page():
     st.title("💰 BudgetWise")
@@ -314,24 +319,38 @@ elif menu == "Manage Budget":
 elif menu == "Saving Goals":
     st.header("🎯 Savings Goal Tracker")
     
-    with st.form("savings_form"):
-        goal_id = st.text_input("Goal ID", value="G001")
-        goal_name = st.text_input("Goal Name", value="Emergency Fund")
-        target_amount = st.number_input("Target Amount (₱)", min_value=1.0, value=50000.0, step=1000.0)
-        current_savings = st.number_input("Current Savings (₱)", min_value=0.0, value=5000.0, step=500.0)
+    with st.form("savings_form", clear_on_submit=True):
+        st.subheader("Add a New Savings Goal")
+        goal_id = st.text_input("Goal ID", value=f"G{len(st.session_state.savings_goals)+1:03d}")
+        goal_name = st.text_input("Goal Name (e.g. New Laptop)")
+        target_amount = st.number_input("Target Amount (₱)", min_value=1.0, value=10000.0, step=1000.0)
+        current_savings = st.number_input("Current Savings (₱)", min_value=0.0, value=0.0, step=500.0)
         
-        submitted = st.form_submit_button("Calculate Savings Progress")
+        submitted = st.form_submit_button("Add Goal")
         if submitted:
-            goal = SavingsGoal(goal_id, goal_name, target_amount, current_savings)
-            
-            st.subheader(f"Goal: {goal.goalName}")
-            st.write(f"**Target:** ₱{goal.targetAmount:,.2f}")
-            st.write(f"**Saved:** ₱{goal.currentSavings:,.2f}")
+            if goal_name.strip():
+                new_goal = SavingsGoal(goal_id, goal_name, target_amount, current_savings)
+                st.session_state.savings_goals.append(new_goal)
+                st.success(f"Successfully added goal: {goal_name}!")
+            else:
+                st.warning("Please provide a Goal Name.")
+
+    st.write("---")
+    st.subheader("Your Active Savings Goals")
+    
+    if st.session_state.savings_goals:
+        for goal in st.session_state.savings_goals:
+            st.write(f"### 🎯 {goal.goalName} (`{goal.goalID}`)")
+            col_g1, col_g2 = st.columns(2)
+            col_g1.write(f"**Target:** ₱{goal.targetAmount:,.2f}")
+            col_g2.write(f"**Saved:** ₱{goal.currentSavings:,.2f}")
             
             progress = goal.calculateProgress()
             st.progress(min(progress / 100, 1.0))
-            st.write(f"**Progress:** {progress:.2f}%")
-            st.write(f"**Status:** {goal.checkGoalStatus()}")
+            st.write(f"**Progress:** {progress:.2f}% | **Status:** {goal.checkGoalStatus()}")
+            st.write("---")
+    else:
+        st.info("No savings goals created yet.")
 
 # --- Financial Coach ---
 elif menu == "Financial Coach":
