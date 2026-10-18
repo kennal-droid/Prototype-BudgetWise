@@ -21,9 +21,7 @@ def load_user_transactions(user_obj):
             # Clear local list to avoid duplicate appends on reload
             user_obj.transactions = []
             for row in tx_response.data:
-                # Retrieve stored date or fall back to today
                 stored_date = row.get("created_at", str(datetime.date.today()))
-                # Format to YYYY-MM-DD string if it contains timestamp
                 if "T" in stored_date:
                     stored_date = stored_date.split("T")[0]
                     
@@ -47,7 +45,6 @@ if "authenticated" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = None
 if "savings_goals" not in st.session_state:
-    # Initialize with default goal while allowing cumulative entries
     st.session_state.savings_goals = [
         SavingsGoal("G001", "Emergency Fund", 50000.0, 5000.0)
     ]
@@ -71,7 +68,6 @@ def show_login_page():
                 if submit_login:
                     if login_id.strip():
                         try:
-                            # Fetch user from Supabase
                             response = supabase.table("users").select("*").eq("user_id", login_id.strip()).execute()
                             if response.data:
                                 db_user = response.data[0]
@@ -80,7 +76,6 @@ def show_login_page():
                                     name=db_user["name"],
                                     monthlyIncome=float(db_user["monthly_income"])
                                 )
-                                # Load saved transactions from cloud
                                 load_user_transactions(user_instance)
                                 
                                 st.session_state.user = user_instance
@@ -106,7 +101,6 @@ def show_login_page():
                 if submit_signup:
                     if new_id.strip() and new_name.strip():
                         try:
-                            # Upsert user record
                             supabase.table("users").upsert({
                                 "user_id": new_id.strip(),
                                 "name": new_name.strip(),
@@ -118,7 +112,6 @@ def show_login_page():
                                 name=new_name.strip(),
                                 monthlyIncome=new_income
                             )
-                            # Load existing transactions if account already had data
                             load_user_transactions(user_instance)
                             
                             st.session_state.user = user_instance
@@ -130,7 +123,6 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-# Block access until authenticated
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
     st.stop()
@@ -147,11 +139,9 @@ st.caption("Personal Expense, Budget & Financial Coach")
 st.sidebar.header(f"👤 {user.name}")
 st.sidebar.caption(f"User ID: {user.userID}")
 
-# Editable Profile Fields
 name_input = st.sidebar.text_input("Name", value=user.name)
 income_input = st.sidebar.number_input("Monthly Income (₱)", min_value=0.0, value=user.monthlyIncome, step=1000.0)
 
-# Automatic Cloud Sync when profile values change
 if name_input != user.name or income_input != user.monthlyIncome:
     user.name = name_input
     user.monthlyIncome = income_input
@@ -212,7 +202,6 @@ elif menu == "Add Expense":
         submitted = st.form_submit_button("Record Expense")
         if submitted:
             if expense_name:
-                # 1. Add locally to Python session object
                 new_tx = transactions(
                     amount=expense_amount, 
                     transactionID=transaction_id, 
@@ -223,7 +212,6 @@ elif menu == "Add Expense":
                 new_tx.date = str(expense_date)
                 user.addtransaction(new_tx)
                 
-                # 2. Persist directly to Supabase transactions table
                 try:
                     supabase.table("transactions").insert({
                         "user_id": user.userID,
@@ -245,7 +233,6 @@ elif menu == "View Expenses":
     st.header("📊 Transaction History")
     
     if user.transactions:
-        # Filter Selector
         view_mode = st.radio("Filter By Period Preference", ["All", "Daily", "Weekly", "Monthly"], horizontal=True)
         
         filtered_transactions = []
@@ -269,7 +256,6 @@ elif menu == "View Expenses":
                 if tx_date.month == today.month and tx_date.year == today.year:
                     filtered_transactions.append((tx_date, tx))
         
-        # Calculate summary total for selected period
         period_total = sum(tx.amount for _, tx in filtered_transactions)
         
         st.write("---")
@@ -319,27 +305,28 @@ elif menu == "Manage Budget":
 elif menu == "Saving Goals":
     st.header("🎯 Savings Goal Tracker")
     
-    with st.form("savings_form", clear_on_submit=True):
-        st.subheader("Add a New Savings Goal")
-        goal_id = st.text_input("Goal ID", value=f"G{len(st.session_state.savings_goals)+1:03d}")
-        goal_name = st.text_input("Goal Name (e.g. New Laptop)")
-        target_amount = st.number_input("Target Amount (₱)", min_value=1.0, value=10000.0, step=1000.0)
-        current_savings = st.number_input("Current Savings (₱)", min_value=0.0, value=0.0, step=500.0)
-        
-        submitted = st.form_submit_button("Add Goal")
-        if submitted:
-            if goal_name.strip():
-                new_goal = SavingsGoal(goal_id, goal_name, target_amount, current_savings)
-                st.session_state.savings_goals.append(new_goal)
-                st.success(f"Successfully added goal: {goal_name}!")
-            else:
-                st.warning("Please provide a Goal Name.")
+    with st.expander("➕ Create a New Savings Goal", expanded=False):
+        with st.form("savings_form", clear_on_submit=True):
+            goal_id = st.text_input("Goal ID", value=f"G{len(st.session_state.savings_goals)+1:03d}")
+            goal_name = st.text_input("Goal Name (e.g. New Laptop)")
+            target_amount = st.number_input("Target Amount (₱)", min_value=1.0, value=10000.0, step=1000.0)
+            current_savings = st.number_input("Initial Savings (₱)", min_value=0.0, value=0.0, step=500.0)
+            
+            submitted = st.form_submit_button("Add Goal")
+            if submitted:
+                if goal_name.strip():
+                    new_goal = SavingsGoal(goal_id, goal_name, target_amount, current_savings)
+                    st.session_state.savings_goals.append(new_goal)
+                    st.success(f"Successfully added goal: {goal_name}!")
+                    st.rerun()
+                else:
+                    st.warning("Please provide a Goal Name.")
 
     st.write("---")
     st.subheader("Your Active Savings Goals")
     
     if st.session_state.savings_goals:
-        for goal in st.session_state.savings_goals:
+        for idx, goal in enumerate(st.session_state.savings_goals):
             st.write(f"### 🎯 {goal.goalName} (`{goal.goalID}`)")
             col_g1, col_g2 = st.columns(2)
             col_g1.write(f"**Target:** ₱{goal.targetAmount:,.2f}")
@@ -348,6 +335,18 @@ elif menu == "Saving Goals":
             progress = goal.calculateProgress()
             st.progress(min(progress / 100, 1.0))
             st.write(f"**Progress:** {progress:.2f}% | **Status:** {goal.checkGoalStatus()}")
+            
+            with st.form(key=f"deposit_form_{idx}"):
+                col_d1, col_d2 = st.columns([2, 1])
+                deposit_amount = col_d1.number_input(f"Add Funds (₱)", min_value=0.0, step=100.0, key=f"dep_{idx}")
+                deposit_submitted = col_d2.form_submit_button("Deposit Money")
+                if deposit_submitted:
+                    if deposit_amount > 0:
+                        goal.currentSavings += deposit_amount
+                        st.success(f"Added ₱{deposit_amount:,.2f} to {goal.goalName}!")
+                        st.rerun()
+                    else:
+                        st.warning("Enter a valid amount to deposit.")
             st.write("---")
     else:
         st.info("No savings goals created yet.")
