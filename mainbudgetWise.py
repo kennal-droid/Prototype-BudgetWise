@@ -1,3 +1,4 @@
+import datetime
 import streamlit as st
 from userBudgetWise import userBudgetWise
 from transactions import transactions
@@ -229,14 +230,43 @@ elif menu == "View Expenses":
     st.header("📊 Transaction History")
     
     if user.transactions:
+        # Time Period Filter Preference
+        view_mode = st.radio("Filter By Period Preference", ["All", "Daily", "Weekly", "Monthly"], horizontal=True)
+        
+        filtered_transactions = []
+        today = datetime.date.today()
+        
         for tx in user.transactions:
-            category_label = getattr(tx, "category", "General")
-            description_label = getattr(tx, "description", "No description")
-            st.write(
-                f"**Date:** {tx.date} | **Type:** {tx.type.upper()} | "
-                f"**Category:** [{category_label}] | **ID:** {tx.transactionID} | "
-                f"**Amount:** ₱{tx.amount:,.2f} | **Desc:** {description_label}"
-            )
+            try:
+                tx_date = datetime.date.fromisoformat(str(tx.date))
+            except Exception:
+                tx_date = today
+                
+            if view_mode == "All":
+                filtered_transactions.append((tx_date, tx))
+            elif view_mode == "Daily":
+                if tx_date == today:
+                    filtered_transactions.append((tx_date, tx))
+            elif view_mode == "Weekly":
+                # Matches current ISO week and year
+                if tx_date.isocalendar()[1] == today.isocalendar()[1] and tx_date.year == today.year:
+                    filtered_transactions.append((tx_date, tx))
+            elif view_mode == "Monthly":
+                if tx_date.month == today.month and tx_date.year == today.year:
+                    filtered_transactions.append((tx_date, tx))
+        
+        st.write("---")
+        if filtered_transactions:
+            for tx_date, tx in filtered_transactions:
+                category_label = getattr(tx, "category", "General")
+                description_label = getattr(tx, "description", "No description")
+                st.write(
+                    f"**Date:** {tx.date} | **Type:** {tx.type.upper()} | "
+                    f"**Category:** [{category_label}] | **ID:** {tx.transactionID} | "
+                    f"**Amount:** ₱{tx.amount:,.2f} | **Desc:** {description_label}"
+                )
+        else:
+            st.info(f"No transactions found for the selected '{view_mode}' filter.")
     else:
         st.info("No expenses recorded yet.")
 
