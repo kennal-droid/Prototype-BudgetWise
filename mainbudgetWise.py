@@ -21,6 +21,12 @@ def load_user_transactions(user_obj):
             # Clear local list to avoid duplicate appends on reload
             user_obj.transactions = []
             for row in tx_response.data:
+                # Retrieve stored date or fall back to today
+                stored_date = row.get("created_at", str(datetime.date.today()))
+                # Format to YYYY-MM-DD string if it contains timestamp
+                if "T" in stored_date:
+                    stored_date = stored_date.split("T")[0]
+                    
                 loaded_tx = transactions(
                     amount=float(row["amount"]),
                     transactionID=row["transaction_id"],
@@ -28,6 +34,7 @@ def load_user_transactions(user_obj):
                     category=row.get("category", "General"),
                     description=row.get("description", "No description")
                 )
+                loaded_tx.date = stored_date
                 user_obj.addtransaction(loaded_tx)
     except Exception as e:
         st.sidebar.error(f"Could not load cloud transactions: {e}")
@@ -194,6 +201,7 @@ elif menu == "Add Expense":
         expense_name = st.text_input("Expense Description (e.g. Groceries)")
         category = st.selectbox("Category", ["Food & Dining", "Transportation", "Utilities", "Entertainment", "Shopping", "General"])
         expense_amount = st.number_input("Amount (₱)", min_value=0.01, step=50.0)
+        expense_date = st.date_input("Transaction Date", value=datetime.date.today())
         transaction_id = st.text_input("Transaction ID", value=f"TXN{len(user.transactions)+1:03d}")
         
         submitted = st.form_submit_button("Record Expense")
@@ -207,6 +215,7 @@ elif menu == "Add Expense":
                     category=category, 
                     description=expense_name
                 )
+                new_tx.date = str(expense_date)
                 user.addtransaction(new_tx)
                 
                 # 2. Persist directly to Supabase transactions table
@@ -217,9 +226,10 @@ elif menu == "Add Expense":
                         "amount": expense_amount,
                         "type": "expense",
                         "category": category,
-                        "description": expense_name
+                        "description": expense_name,
+                        "created_at": str(expense_date)
                     }).execute()
-                    st.success(f"Added & synced expense: {expense_name} ({category}) - ₱{expense_amount:,.2f}")
+                    st.success(f"Added & synced expense: {expense_name} ({category}) on {expense_date} - ₱{expense_amount:,.2f}")
                 except Exception as db_err:
                     st.error(f"Saved locally, but cloud sync failed: {db_err}")
             else:
@@ -230,7 +240,7 @@ elif menu == "View Expenses":
     st.header("📊 Transaction History")
     
     if user.transactions:
-        # Time Period Filter Preference
+        # Filter Selector
         view_mode = st.radio("Filter By Period Preference", ["All", "Daily", "Weekly", "Monthly"], horizontal=True)
         
         filtered_transactions = []
@@ -248,14 +258,21 @@ elif menu == "View Expenses":
                 if tx_date == today:
                     filtered_transactions.append((tx_date, tx))
             elif view_mode == "Weekly":
-                # Matches current ISO week and year
                 if tx_date.isocalendar()[1] == today.isocalendar()[1] and tx_date.year == today.year:
                     filtered_transactions.append((tx_date, tx))
             elif view_mode == "Monthly":
                 if tx_date.month == today.month and tx_date.year == today.year:
                     filtered_transactions.append((tx_date, tx))
         
+        # Calculate summary total for selected period
+        period_total = sum(tx.amount for _, tx in filtered_transactions)
+        
         st.write("---")
+        col_m1, col_m2 = st.columns(2)
+        col_m1.metric(f"{view_mode} Total Spending", f"₱{period_total:,.2f}")
+        col_m2.metric("Filtered Records", len(filtered_transactions))
+        st.write("---")
+        
         if filtered_transactions:
             for tx_date, tx in filtered_transactions:
                 category_label = getattr(tx, "category", "General")
