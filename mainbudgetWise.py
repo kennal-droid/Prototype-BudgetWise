@@ -129,7 +129,7 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB (With Transaction-Based Collision Handling) ---
+        # --- FIND ID TAB (With Multi-Tier Collision Handling) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
@@ -144,11 +144,11 @@ def show_login_page():
                         st.success(f"Found Account: **{m['name']}** → User ID: **`{m['user_id']}`**")
                     else:
                         st.session_state.found_matches = matches
-                        st.warning(f"Found {len(matches)} accounts with the name '{search_name}'. Please verify your profile below.")
+                        st.warning(f"Found {len(matches)} accounts with the name '{search_name}'. Please verify your income below.")
                 else:
                     st.warning("Please enter a name to search.")
 
-            # Disambiguation Prompt for Duplicate Names & Incomes
+            # Tier 2: Monthly Income Disambiguation
             if "found_matches" in st.session_state and st.session_state.found_matches:
                 st.write("---")
                 st.subheader("Identity Verification")
@@ -164,33 +164,38 @@ def show_login_page():
                         matched_user = matching_income_users[0]
                         st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
                         del st.session_state.found_matches
+                        if "duplicate_income_users" in st.session_state:
+                            del st.session_state.duplicate_income_users
                     elif len(matching_income_users) > 1:
-                        # Advanced Tie-Breaker: If name & income are identical, use a Transaction ID!
+                        st.session_state.duplicate_income_users = matching_income_users
                         st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID (e.g. TXN001) associated with your account to verify:")
-                        verify_tx_id = st.text_input("Recent Transaction ID", key="verify_tx_input")
-                        
-                        if st.button("Verify via Transaction"):
-                            if verify_tx_id.strip():
-                                try:
-                                    tx_query = supabase.table("transactions").select("user_id").eq("transaction_id", verify_tx_id.strip()).execute()
-                                    if tx_query.data:
-                                        owner_id = tx_query.data[0]["user_id"]
-                                        matched_user = next((m for m in matching_income_users if m["user_id"] == owner_id), None)
-                                        
-                                        if matched_user:
-                                            st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
-                                            del st.session_state.found_matches
-                                            st.rerun()
-                                        else:
-                                            st.error("This transaction ID does not belong to any of the matching accounts.")
-                                    else:
-                                        st.error("Transaction ID not found in the database.")
-                                except Exception as e:
-                                    st.error(f"Error checking transaction: {e}")
-                            else:
-                                st.warning("Please enter a Transaction ID.")
                     else:
                         st.error("Income value does not match any account with that name.")
+
+                # Tier 3: Transaction ID Tie-Breaker
+                if "duplicate_income_users" in st.session_state and st.session_state.duplicate_income_users:
+                    verify_tx_id = st.text_input("Recent Transaction ID", key="verify_tx_input")
+                    if st.button("Verify via Transaction"):
+                        if verify_tx_id.strip():
+                            try:
+                                tx_query = supabase.table("transactions").select("user_id").eq("transaction_id", verify_tx_id.strip()).execute()
+                                if tx_query.data:
+                                    owner_id = tx_query.data[0]["user_id"]
+                                    matched_user = next((m for m in st.session_state.duplicate_income_users if m["user_id"] == owner_id), None)
+                                    
+                                    if matched_user:
+                                        st.success(f"Identity Verified via Transaction! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
+                                        del st.session_state.found_matches
+                                        del st.session_state.duplicate_income_users
+                                        st.rerun()
+                                    else:
+                                        st.error("This Transaction ID does not belong to any of the matching accounts.")
+                                else:
+                                    st.error("Transaction ID not found in the database.")
+                            except Exception as e:
+                                st.error(f"Error checking transaction: {e}")
+                        else:
+                            st.warning("Please enter a Transaction ID.")
 
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
