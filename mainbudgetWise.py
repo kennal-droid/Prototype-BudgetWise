@@ -428,3 +428,26 @@ elif menu == "Saving Goals":
         st.info("No savings goals created yet.")
 
 # --- Financial Coach ---
+elif menu == "Financial Coach":
+    st.header("🤖 Financial Coach Advice")
+    
+    current_spending = user.getTotalExpenses()
+    pattern = f"Spent ₱{current_spending:,.2f} out of ₱{user.monthlyIncome:,.2f} income."
+    
+    if current_spending > user.monthlyIncome:
+        rec = "CRITICAL ALERT: Your expenses exceed your monthly income! Immediate budget cuts are required."
+    elif current_spending > user.monthlyIncome * 0.8:
+        rec = "You are spending more than 80% of your income. Focus on cutting non-essential costs immediately."
+    else:
+        rec = "Your spending is healthy. Consider channeling extra balance into savings!"
+        
+    coach = FinancialCoach(rec, pattern)
+    
+    st.subheader("Spending Pattern Analysis")
+    st.write(coach.analyzeSpending())
+    
+    st.subheader("Recommendation")
+    if current_spending > user.monthlyIncome * 0.8:
+        st.error(coach.giveSuggestion())
+    else:
+        st.success(coach.giveSuggestion())
