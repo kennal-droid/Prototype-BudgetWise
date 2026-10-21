@@ -365,7 +365,14 @@ elif menu == "Saving Goals":
     
     if st.session_state.savings_goals:
         for idx, goal in enumerate(st.session_state.savings_goals):
-            st.write(f"### 🎯 {goal.goalName} (`{goal.goalID}`)")
+            col_header1, col_header2 = st.columns([4, 1])
+            col_header1.write(f"### 🎯 {goal.goalName} (`{goal.goalID}`)")
+            
+            if col_header2.button("🗑️ Delete", key=f"del_{idx}"):
+                st.session_state.savings_goals.pop(idx)
+                st.success(f"Deleted goal: {goal.goalName}")
+                st.rerun()
+
             col_g1, col_g2 = st.columns(2)
             col_g1.write(f"**Target:** ₱{goal.targetAmount:,.2f}")
             col_g2.write(f"**Saved:** ₱{goal.currentSavings:,.2f}")
