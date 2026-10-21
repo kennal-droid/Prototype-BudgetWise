@@ -58,7 +58,7 @@ def show_login_page():
     with col2:
         tab1, tab2, tab3 = st.tabs(["🔑 Login", "📝 Sign Up", "🔍 Forgot ID"])
         
-        # --- LOGIN TAB (Updated with Dual Verification: ID + Name) ---
+        # --- LOGIN TAB (Dual Verification: User ID + Full Name) ---
         with tab1:
             st.subheader("Login to Your Account")
             with st.form("login_form"):
@@ -129,7 +129,7 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB (With Collision Handling) ---
+        # --- FIND ID TAB (With Transaction-Based Collision Handling) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
@@ -148,24 +148,49 @@ def show_login_page():
                 else:
                     st.warning("Please enter a name to search.")
 
-            # Disambiguation Prompt for Duplicate Names
+            # Disambiguation Prompt for Duplicate Names & Incomes
             if "found_matches" in st.session_state and st.session_state.found_matches:
                 st.write("---")
                 st.subheader("Identity Verification")
                 verify_income = st.number_input("Enter your registered Monthly Income (₱) to verify:", min_value=0.0, step=500.0, key="verify_income_input")
                 
                 if st.button("Verify Identity"):
-                    matched_user = None
-                    for m in st.session_state.found_matches:
-                        if abs(float(m["monthly_income"]) - verify_income) < 1.0:
-                            matched_user = m
-                            break
+                    matching_income_users = [
+                        m for m in st.session_state.found_matches 
+                        if abs(float(m["monthly_income"]) - verify_income) < 1.0
+                    ]
                     
-                    if matched_user:
+                    if len(matching_income_users) == 1:
+                        matched_user = matching_income_users[0]
                         st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
                         del st.session_state.found_matches
+                    elif len(matching_income_users) > 1:
+                        # Advanced Tie-Breaker: If name & income are identical, use a Transaction ID!
+                        st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID (e.g. TXN001) associated with your account to verify:")
+                        verify_tx_id = st.text_input("Recent Transaction ID", key="verify_tx_input")
+                        
+                        if st.button("Verify via Transaction"):
+                            if verify_tx_id.strip():
+                                try:
+                                    tx_query = supabase.table("transactions").select("user_id").eq("transaction_id", verify_tx_id.strip()).execute()
+                                    if tx_query.data:
+                                        owner_id = tx_query.data[0]["user_id"]
+                                        matched_user = next((m for m in matching_income_users if m["user_id"] == owner_id), None)
+                                        
+                                        if matched_user:
+                                            st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
+                                            del st.session_state.found_matches
+                                            st.rerun()
+                                        else:
+                                            st.error("This transaction ID does not belong to any of the matching accounts.")
+                                    else:
+                                        st.error("Transaction ID not found in the database.")
+                                except Exception as e:
+                                    st.error(f"Error checking transaction: {e}")
+                            else:
+                                st.warning("Please enter a Transaction ID.")
                     else:
-                        st.error("Income value does not match any account with that name. Please check your input.")
+                        st.error("Income value does not match any account with that name.")
 
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
@@ -403,26 +428,3 @@ elif menu == "Saving Goals":
         st.info("No savings goals created yet.")
 
 # --- Financial Coach ---
-elif menu == "Financial Coach":
-    st.header("🤖 Financial Coach Advice")
-    
-    current_spending = user.getTotalExpenses()
-    pattern = f"Spent ₱{current_spending:,.2f} out of ₱{user.monthlyIncome:,.2f} income."
-    
-    if current_spending > user.monthlyIncome:
-        rec = "CRITICAL ALERT: Your expenses exceed your monthly income! Immediate budget cuts are required."
-    elif current_spending > user.monthlyIncome * 0.8:
-        rec = "You are spending more than 80% of your income. Focus on cutting non-essential costs immediately."
-    else:
-        rec = "Your spending is healthy. Consider channeling extra balance into savings!"
-        
-    coach = FinancialCoach(rec, pattern)
-    
-    st.subheader("Spending Pattern Analysis")
-    st.write(coach.analyzeSpending())
-    
-    st.subheader("Recommendation")
-    if current_spending > user.monthlyIncome * 0.8:
-        st.error(coach.giveSuggestion())
-    else:
-        st.success(coach.giveSuggestion())
