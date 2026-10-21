@@ -129,19 +129,23 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB (With Multi-Tier Collision Handling) ---
+        # --- FIND ID TAB (With Persistent Success Message) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
             
             if st.button("Search Account"):
+                # Clear existing messages on new search
+                if "tx_success_msg" in st.session_state:
+                    del st.session_state.tx_success_msg
+                
                 if search_name.strip():
                     matches = userBudgetWise.find_users_by_name(search_name)
                     if not matches:
                         st.error("No account found with that name.")
                     elif len(matches) == 1:
                         m = matches[0]
-                        st.success(f"Found Account: **{m['name']}** → User ID: **`{m['user_id']}`**")
+                        st.session_state.tx_success_msg = f"Found Account: **{m['name']}** → User ID: **`{m['user_id']}`**"
                     else:
                         st.session_state.found_matches = matches
                         st.warning(f"Found {len(matches)} accounts with the name '{search_name}'. Please verify your income below.")
@@ -162,10 +166,11 @@ def show_login_page():
                     
                     if len(matching_income_users) == 1:
                         matched_user = matching_income_users[0]
-                        st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
+                        st.session_state.tx_success_msg = f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**"
                         del st.session_state.found_matches
                         if "duplicate_income_users" in st.session_state:
                             del st.session_state.duplicate_income_users
+                        st.rerun()
                     elif len(matching_income_users) > 1:
                         st.session_state.duplicate_income_users = matching_income_users
                         st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID (e.g. TXN001) associated with your account to verify:")
@@ -184,7 +189,7 @@ def show_login_page():
                                     matched_user = next((m for m in st.session_state.duplicate_income_users if m["user_id"] == owner_id), None)
                                     
                                     if matched_user:
-                                        st.success(f"Identity Verified via Transaction! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
+                                        st.session_state.tx_success_msg = f"Identity Verified via Transaction! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**"
                                         del st.session_state.found_matches
                                         del st.session_state.duplicate_income_users
                                         st.rerun()
@@ -196,6 +201,11 @@ def show_login_page():
                                 st.error(f"Error checking transaction: {e}")
                         else:
                             st.warning("Please enter a Transaction ID.")
+
+            # Display Persistent Verification Success Banner
+            if "tx_success_msg" in st.session_state:
+                st.write("---")
+                st.success(st.session_state.tx_success_msg)
 
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
