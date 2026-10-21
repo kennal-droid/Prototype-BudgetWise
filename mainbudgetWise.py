@@ -130,7 +130,7 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB (With Persistent Success Message & Multi-Tier Collision Handling) ---
+        # --- FIND ID TAB (With Expense Detail Tie-Breaker) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
@@ -173,36 +173,45 @@ def show_login_page():
                         st.rerun()
                     elif len(matching_income_users) > 1:
                         st.session_state.duplicate_income_users = matching_income_users
-                        st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID associated with your account to verify:")
+                        st.warning("Multiple accounts share this name and income. Please enter a recent Expense Description or Category to verify:")
                     else:
                         st.error("Income value does not match any account with that name.")
 
-                # Tier 3: Transaction ID Tie-Breaker
+                # Tier 3: Expense Category / Description Tie-Breaker
                 if "duplicate_income_users" in st.session_state and st.session_state.duplicate_income_users:
-                    verify_tx_id = st.text_input("Recent Transaction ID", key="verify_tx_input")
-                    if st.button("Verify via Transaction"):
-                        if verify_tx_id.strip():
+                    verify_tx_detail = st.text_input("Recent Expense Description or Category (e.g., Groceries, Rent)", key="verify_tx_input")
+                    if st.button("Verify via Expense Detail"):
+                        if verify_tx_detail.strip():
                             try:
-                                tx_query = supabase.table("transactions").select("user_id").eq("transaction_id", verify_tx_id.strip()).execute()
+                                search_term = f"%{verify_tx_detail.strip().lower()}%"
+                                cand_ids = [m["user_id"] for m in st.session_state.duplicate_income_users]
+                                
+                                # Query Supabase transactions matching category or description
+                                tx_query = supabase.table("transactions")\
+                                    .select("user_id")\
+                                    .in_("user_id", cand_ids)\
+                                    .or_(f"description.ilike.{search_term},category.ilike.{search_term}")\
+                                    .execute()
+                                
                                 if tx_query.data:
-                                    owner_id = tx_query.data[0]["user_id"]
-                                    matched_user = next((m for m in st.session_state.duplicate_income_users if m["user_id"] == owner_id), None)
-                                    
-                                    if matched_user:
-                                        st.session_state.tx_success_msg = f"Identity Verified via Transaction! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**"
+                                    matching_owners = list(set(row["user_id"] for row in tx_query.data))
+                                    if len(matching_owners) == 1:
+                                        owner_id = matching_owners[0]
+                                        matched_user = next((m for m in st.session_state.duplicate_income_users if m["user_id"] == owner_id), None)
+                                        st.session_state.tx_success_msg = f"Identity Verified via Expense Record! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**"
                                         del st.session_state.found_matches
                                         del st.session_state.duplicate_income_users
                                         st.rerun()
                                     else:
-                                        st.error("This Transaction ID does not belong to any of the matching accounts.")
+                                        st.error("Multiple matching candidate accounts found for that detail. Try entering a more specific description.")
                                 else:
-                                    st.error("Transaction ID not found in the database.")
+                                    st.error("No matching expense category or description found for these candidate accounts.")
                             except Exception as e:
-                                st.error(f"Error checking transaction: {e}")
+                                st.error(f"Error checking expense records: {e}")
                         else:
-                            st.warning("Please enter a Transaction ID.")
+                            st.warning("Please enter an expense description or category.")
 
-            # Display Persistent Verification Success Banner
+            # Persistent Verification Banner
             if "tx_success_msg" in st.session_state:
                 st.write("---")
                 st.success(st.session_state.tx_success_msg)
@@ -276,7 +285,6 @@ if menu == "Dashboard":
 elif menu == "Add Expense":
     st.header("💳 Add New Expense")
     
-    # Automatically generate a globally unique transaction ID token
     unique_tx_id = f"TXN-{uuid.uuid4().hex[:8].upper()}"
     
     with st.form("add_expense_form", clear_on_submit=True):
