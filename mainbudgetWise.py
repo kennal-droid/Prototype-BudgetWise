@@ -56,7 +56,7 @@ def show_login_page():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        tab1, tab2 = st.tabs(["🔑 Login", "📝 Sign Up"])
+        tab1, tab2, tab3 = st.tabs(["🔑 Login", "📝 Sign Up", "🔍 Forgot ID"])
         
         # --- LOGIN TAB ---
         with tab1:
@@ -122,6 +122,24 @@ def show_login_page():
                             st.error(f"Failed to save account: {e}")
                     else:
                         st.warning("Please provide both a User ID and Name.")
+
+        # --- FIND ID TAB ---
+        with tab3:
+            st.subheader("🔍 Forgot User ID?")
+            search_name = st.text_input("Enter your registered Full Name")
+            if st.button("Find My ID"):
+                if search_name.strip():
+                    try:
+                        res = supabase.table("users").select("user_id, name").ilike("name", f"%{search_name.strip()}%").execute()
+                        if res.data:
+                            for match in res.data:
+                                st.success(f"Found Account: **{match['name']}** → User ID: **`{match['user_id']}`**")
+                        else:
+                            st.error("No account found with that name.")
+                    except Exception as e:
+                        st.error(f"Error searching database: {e}")
+                else:
+                    st.warning("Please enter a name to search.")
 
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
