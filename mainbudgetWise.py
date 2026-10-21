@@ -1,4 +1,5 @@
 import datetime
+import uuid
 import streamlit as st
 from userBudgetWise import userBudgetWise
 from transactions import transactions
@@ -129,13 +130,12 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB (With Persistent Success Message) ---
+        # --- FIND ID TAB (With Persistent Success Message & Multi-Tier Collision Handling) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
             
             if st.button("Search Account"):
-                # Clear existing messages on new search
                 if "tx_success_msg" in st.session_state:
                     del st.session_state.tx_success_msg
                 
@@ -173,7 +173,7 @@ def show_login_page():
                         st.rerun()
                     elif len(matching_income_users) > 1:
                         st.session_state.duplicate_income_users = matching_income_users
-                        st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID (e.g. TXN001) associated with your account to verify:")
+                        st.warning("Multiple accounts share this name and income. Please enter a recent Transaction ID associated with your account to verify:")
                     else:
                         st.error("Income value does not match any account with that name.")
 
@@ -272,23 +272,27 @@ if menu == "Dashboard":
     else:
         st.success("✅ Your spending is within a healthy range relative to your income.")
 
-# --- Add Expense ---
+# --- Add Expense (With Unique UUID Generator) ---
 elif menu == "Add Expense":
     st.header("💳 Add New Expense")
+    
+    # Automatically generate a globally unique transaction ID token
+    unique_tx_id = f"TXN-{uuid.uuid4().hex[:8].upper()}"
     
     with st.form("add_expense_form", clear_on_submit=True):
         expense_name = st.text_input("Expense Description (e.g. Groceries)")
         category = st.selectbox("Category", ["Food & Dining", "Transportation", "Utilities", "Entertainment", "Shopping", "General"])
         expense_amount = st.number_input("Amount (₱)", min_value=0.01, step=50.0)
         expense_date = st.date_input("Transaction Date", value=datetime.date.today())
-        transaction_id = st.text_input("Transaction ID", value=f"TXN{len(user.transactions)+1:03d}")
+        
+        st.text_input("Transaction ID (Auto-Generated Unique)", value=unique_tx_id, disabled=True)
         
         submitted = st.form_submit_button("Record Expense")
         if submitted:
             if expense_name:
                 new_tx = transactions(
                     amount=expense_amount, 
-                    transactionID=transaction_id, 
+                    transactionID=unique_tx_id, 
                     type="expense", 
                     category=category, 
                     description=expense_name
@@ -299,14 +303,14 @@ elif menu == "Add Expense":
                 try:
                     supabase.table("transactions").insert({
                         "user_id": user.userID,
-                        "transaction_id": transaction_id,
+                        "transaction_id": unique_tx_id,
                         "amount": expense_amount,
                         "type": "expense",
                         "category": category,
                         "description": expense_name,
                         "created_at": str(expense_date)
                     }).execute()
-                    st.success(f"Added & synced expense: {expense_name} ({category}) on {expense_date} - ₱{expense_amount:,.2f}")
+                    st.success(f"Added & synced unique expense ({unique_tx_id}): ₱{expense_amount:,.2f}")
                 except Exception as db_err:
                     st.error(f"Saved locally, but cloud sync failed: {db_err}")
             else:
