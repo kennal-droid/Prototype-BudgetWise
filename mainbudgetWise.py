@@ -123,23 +123,43 @@ def show_login_page():
                     else:
                         st.warning("Please provide both a User ID and Name.")
 
-        # --- FIND ID TAB ---
+        # --- FIND ID TAB (With Collision Handling) ---
         with tab3:
             st.subheader("🔍 Forgot User ID?")
             search_name = st.text_input("Enter your registered Full Name")
-            if st.button("Find My ID"):
+            
+            if st.button("Search Account"):
                 if search_name.strip():
-                    try:
-                        res = supabase.table("users").select("user_id, name").ilike("name", f"%{search_name.strip()}%").execute()
-                        if res.data:
-                            for match in res.data:
-                                st.success(f"Found Account: **{match['name']}** → User ID: **`{match['user_id']}`**")
-                        else:
-                            st.error("No account found with that name.")
-                    except Exception as e:
-                        st.error(f"Error searching database: {e}")
+                    matches = userBudgetWise.find_users_by_name(search_name)
+                    if not matches:
+                        st.error("No account found with that name.")
+                    elif len(matches) == 1:
+                        m = matches[0]
+                        st.success(f"Found Account: **{m['name']}** → User ID: **`{m['user_id']}`**")
+                    else:
+                        st.session_state.found_matches = matches
+                        st.warning(f"Found {len(matches)} accounts with the name '{search_name}'. Please verify your profile below.")
                 else:
                     st.warning("Please enter a name to search.")
+
+            # Disambiguation Prompt for Duplicate Names
+            if "found_matches" in st.session_state and st.session_state.found_matches:
+                st.write("---")
+                st.subheader("Identity Verification")
+                verify_income = st.number_input("Enter your registered Monthly Income (₱) to verify:", min_value=0.0, step=500.0, key="verify_income_input")
+                
+                if st.button("Verify Identity"):
+                    matched_user = None
+                    for m in st.session_state.found_matches:
+                        if abs(float(m["monthly_income"]) - verify_income) < 1.0:
+                            matched_user = m
+                            break
+                    
+                    if matched_user:
+                        st.success(f"Identity Verified! Welcome **{matched_user['name']}** → Your User ID is **`{matched_user['user_id']}`**")
+                        del st.session_state.found_matches
+                    else:
+                        st.error("Income value does not match any account with that name. Please check your input.")
 
 if not st.session_state.authenticated or st.session_state.user is None:
     show_login_page()
