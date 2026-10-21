@@ -58,36 +58,42 @@ def show_login_page():
     with col2:
         tab1, tab2, tab3 = st.tabs(["🔑 Login", "📝 Sign Up", "🔍 Forgot ID"])
         
-        # --- LOGIN TAB ---
+        # --- LOGIN TAB (Updated with Dual Verification: ID + Name) ---
         with tab1:
             st.subheader("Login to Your Account")
             with st.form("login_form"):
                 login_id = st.text_input("User ID (e.g. U101)")
+                login_name = st.text_input("Registered Full Name")
                 submit_login = st.form_submit_button("Login")
                 
                 if submit_login:
-                    if login_id.strip():
+                    if login_id.strip() and login_name.strip():
                         try:
                             response = supabase.table("users").select("*").eq("user_id", login_id.strip()).execute()
                             if response.data:
                                 db_user = response.data[0]
-                                user_instance = userBudgetWise(
-                                    userID=db_user["user_id"],
-                                    name=db_user["name"],
-                                    monthlyIncome=float(db_user["monthly_income"])
-                                )
-                                load_user_transactions(user_instance)
                                 
-                                st.session_state.user = user_instance
-                                st.session_state.authenticated = True
-                                st.success(f"Welcome back, {db_user['name']}!")
-                                st.rerun()
+                                # Verify if the entered name matches the database record
+                                if db_user["name"].strip().lower() == login_name.strip().lower():
+                                    user_instance = userBudgetWise(
+                                        userID=db_user["user_id"],
+                                        name=db_user["name"],
+                                        monthlyIncome=float(db_user["monthly_income"])
+                                    )
+                                    load_user_transactions(user_instance)
+                                    
+                                    st.session_state.user = user_instance
+                                    st.session_state.authenticated = True
+                                    st.success(f"Welcome back, {db_user['name']}!")
+                                    st.rerun()
+                                else:
+                                    st.error("The Name provided does not match this User ID. Please check your credentials.")
                             else:
                                 st.error("User ID not found. Please check your ID or sign up.")
                         except Exception as e:
                             st.error(f"Database connection error: {e}")
                     else:
-                        st.warning("Please enter a valid User ID.")
+                        st.warning("Please enter both your User ID and Full Name.")
 
         # --- SIGNUP TAB ---
         with tab2:
