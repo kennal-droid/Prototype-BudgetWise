@@ -31,3 +31,14 @@ class userBudgetWise:
         print(f"Name: {self.name}")
         print(f"Monthly Income: ₱{self.monthlyIncome:,.2f}")
         print(f"Total Transactions: {len(self.transactions)}")
+
+    @staticmethod
+    def find_users_by_name(name_query):
+        """Class/Static Method to query Supabase for users matching a name query."""
+        try:
+            from supabaseClient import supabase
+            res = supabase.table("users").select("user_id, name, monthly_income").ilike("name", f"%{name_query.strip()}%").execute()
+            return res.data if res.data else []
+        except Exception as e:
+            print(f"Error finding user: {e}")
+            return []
