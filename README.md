@@ -1,5 +1,4 @@
 BudgetWise
-
 BudgetWise is an object-oriented personal expense management system designed specifically for college students. It addresses the common challenge of unpredictable student allowances and end-of-month financial crunches by providing real-time tracking, automated budgeting alerts, and secure cloud synchronization.
 
 Important Features
@@ -36,6 +35,43 @@ FinancialCoach: Evaluates user spending habits and triggers automated alerts.
 
 Setup Instructions
 Prerequisites
-Python 3.8 or higher
+Python 3.8 or higher installed on your system.
 
-A Supabase account and project database
+A Supabase project with configured database tables for users and transactions.
+
+Installation & Configuration Steps
+Clone the Repository:
+
+Bash
+git clone https://github.com/kennal-droid/Prototype-BudgetWise.git
+cd Prototype-BudgetWise
+Set Up a Virtual Environment (Recommended):
+
+Bash
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+Install Dependencies:
+Install all required project dependencies using the provided requirements.txt file:
+
+Bash
+pip install -r requirements.txt
+Configure Environment Variables:
+Create a .env file or Streamlit secrets configuration (.streamlit/secrets.toml) to store your private Supabase credentials safely without hardcoding them into source files.
+
+Example .streamlit/secrets.toml:
+
+Ini, TOML
+SUPABASE_URL = "https://your-project-id.supabase.co"
+SUPABASE_KEY = "your-anon-or-service-role-key-here"
+Run the Application:
+Launch the Streamlit dashboard locally:
+
+Bash
+streamlit run app.py
+Security & Credentials
+Credential Protection: Private API keys, database URLs, and user passwords are kept out of source control using local configuration secrets (.streamlit/secrets.toml or environment variables) which are ignored by .gitignore.
+
+Repository Check: Before pushing changes, always verify that your .env or sensitive secret files are not accidentally staged or committed to GitHub.
