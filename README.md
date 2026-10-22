@@ -1,78 +1,142 @@
-BudgetWise
+# BudgetWise
 
-BudgetWise is an object-oriented personal expense management system designed specifically for college students. It addresses the common challenge of unpredictable student allowances and end-of-month financial crunches by providing real-time tracking, automated budgeting alerts, and secure cloud synchronization.
+## Project Description
 
-Important Features
-Modular Object-Oriented Architecture: Clean separation of data models and business logic across dedicated Python classes.
+BudgetWise is an object-oriented personal expense management system designed for college students. It helps users manage their finances by tracking income and expenses, monitoring budgets, setting savings goals, and receiving financial suggestions based on their spending habits.
 
-Real-Time Expense Filtering: Dynamic daily, weekly, and monthly views with automated warning indicators for critical spending limits.
+The project uses Python and Streamlit to provide an interactive user interface. It also integrates with Supabase for cloud database functionality.
 
-Cloud Sync & Persistence: Automated background upsert operations syncing user profiles and transaction streams securely via Supabase.
+## Important Features
 
-Secure Account Recovery: Multi-tier verification matching exact usernames, income ranges, and transaction tie-breakers.
+- **Expense Tracking:** Record and manage income and expenses.
+- **Budget Management:** Set spending limits and monitor remaining budgets.
+- **Savings Goals:** Set financial targets and track savings progress.
+- **Financial Coach:** Receive predefined suggestions based on spending habits and budget status.
+- **Expense Filtering:** View and organize transactions by supported date ranges.
+- **Interactive Dashboard:** View financial information through a Streamlit interface.
+- **Cloud Database Integration:** Store and synchronize supported user and transaction data through Supabase.
+- **Object-Oriented Architecture:** Organize project functionality into separate Python classes.
 
-Interactive Streamlit Dashboard: A responsive, user-friendly UI designed for seamless everyday financial management.
+## Object-Oriented Programming Implementation
 
-OOP Implementation
-BudgetWise implements core Object-Oriented Programming (OOP) principles to maintain clean, scalable, and maintainable code:
+BudgetWise uses Object-Oriented Programming (OOP) to organize its code into classes with distinct responsibilities.
 
-Encapsulation: Internal attributes and state management are protected and controlled through explicit methods within each model class.
+### OOP Principles
 
-Abstraction: Complex database queries and Supabase connection handling are abstracted away from the core UI components.
+- **Encapsulation:** Organizes data and related methods within classes to manage object state.
+- **Abstraction:** Separates implementation details from the operations used by other parts of the application.
+- **Modularity:** Divides the application into classes and modules to improve code organization and maintainability.
 
-Modular Class Structure:
+### Main Classes
 
-userBudgetWise: Manages user authentication and profile data.
+- **`userBudgetWise`:** Manages user profile information and related user operations.
+- **`transactions`:** Handles financial transaction records and supported filtering operations.
+- **`UserBudget`:** Manages budget limits, spending, and remaining balances.
+- **`SavingsGoal`:** Manages savings targets and progress.
+- **`Category`:** Organizes transactions into categories.
+- **`FinancialCoach`:** Analyzes spending information and provides predefined financial suggestions.
 
-transactions: Handles income, expense records, and dynamic filtering.
+Each class contributes to a specific part of the application's financial management functionality.
 
-UserBudget: Manages user budget limits and allocations.
+## Technologies Used
 
-SavingsGoal: Tracks personal savings targets.
+- **Python:** Main programming language.
+- **Streamlit:** Interactive user interface.
+- **Supabase:** Cloud database and data synchronization, where configured.
+- **Git and GitHub:** Source code management and project hosting.
 
-Category: Organizes financial entries into logical groupings.
+## Requirements
 
-FinancialCoach: Evaluates user spending habits and triggers automated alerts.
+Before running BudgetWise, make sure you have:
 
-Setup Instructions
-Prerequisites
-Python 3.8 or higher installed on your system.
+- Python installed on your computer.
+- The project source code cloned from GitHub.
+- The required Python packages listed in `requirements.txt`.
+- A Supabase project and the required database configuration if you want to use cloud features.
 
-A Supabase project with configured database tables for users and transactions.
+## Setup Instructions
 
-Installation & Configuration Steps
-Clone the Repository:
+### 1. Clone the Repository
 
-Bash
+Open a terminal or command prompt and run:
+
+```bash
 git clone https://github.com/kennal-droid/Prototype-BudgetWise.git
 cd Prototype-BudgetWise
-Set Up a Virtual Environment (Recommended):
+```
 
-Bash
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-Install Dependencies:
-Install all required project dependencies using the provided requirements.txt file:
+### 2. Create a Virtual Environment
 
-Bash
-pip install -r requirements.txt
-Configure Environment Variables:
-Create a .env file or Streamlit secrets configuration (.streamlit/secrets.toml) to store your private Supabase credentials safely without hardcoding them into source files.
+Create an isolated Python environment for the project:
 
-Example .streamlit/secrets.toml:
+```bash
+python -m venv .venv
+```
 
-Ini, TOML
+On Windows, activate it using:
+
+```bash
+.venv\Scripts\activate
+```
+
+On macOS or Linux, activate it using:
+
+```bash
+source .venv/bin/activate
+```
+
+If the `python` command is unavailable on Windows, you can try `py` instead.
+
+### 3. Install Dependencies
+
+Install the required packages:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 4. Configure Supabase
+
+If your local application requires Supabase, configure your credentials using the method expected by your source code.
+
+For example, if your application reads credentials from Streamlit secrets, create a file at:
+
+`.streamlit/secrets.toml`
+
+Add the following structure, replacing the placeholders with your own credentials:
+
+```toml
 SUPABASE_URL = "https://your-project-id.supabase.co"
-SUPABASE_KEY = "your-anon-or-service-role-key-here"
-Run the Application:
-Launch the Streamlit dashboard locally:
+SUPABASE_KEY = "your-supabase-key"
+```
 
-Bash
-streamlit run app.py
-Security & Credentials
-Credential Protection: Private API keys, database URLs, and user passwords are kept out of source control using local configuration secrets (.streamlit/secrets.toml or environment variables) which are ignored by .gitignore.
+**Important:** The configuration names above are examples. Confirm that they match the names read by your `supabaseClient.py` file. Configure the required Supabase database tables and permissions according to your application's implementation.
 
-Repository Check: Before pushing changes, always verify that your .env or sensitive secret files are not accidentally staged or committed to GitHub.
+Do not commit real credentials or private keys to GitHub.
+
+### 5. Run the Application
+
+From the project directory, run:
+
+```bash
+streamlit run mainbudgetWise.py
+```
+
+This command assumes that `mainbudgetWise.py` is the main Streamlit application file. If your actual entry-point file is different, replace the filename with the correct one.
+
+## Security and Credentials
+
+- Keep Supabase keys, passwords, and other sensitive information private.
+- Store credentials in local configuration files or environment variables as supported by the application.
+- Ensure `.env` and `.streamlit/secrets.toml` are excluded from version control when they contain real credentials.
+- Review changes before pushing them to GitHub to ensure no secrets are included.
+- Use appropriate Supabase permissions and Row Level Security (RLS) policies where applicable.
+- Never expose a Supabase service-role key in a public repository or client-side application.
+
+## Project Repository
+
+GitHub: https://github.com/kennal-droid/Prototype-BudgetWise
+
+## Project Purpose
+
+BudgetWise aims to help college students develop better financial management habits by making it easier to monitor expenses, manage budgets, and work toward savings goals.
