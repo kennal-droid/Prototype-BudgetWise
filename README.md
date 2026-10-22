@@ -1,4 +1,5 @@
 BudgetWise
+
 BudgetWise is an object-oriented personal expense management system designed specifically for college students. It addresses the common challenge of unpredictable student allowances and end-of-month financial crunches by providing real-time tracking, automated budgeting alerts, and secure cloud synchronization.
 
 Important Features
